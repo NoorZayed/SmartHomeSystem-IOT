@@ -1,0 +1,13 @@
+# Project Dependencies
+numpy>=1.24.0
+matplotlib>=3.7.0
+paho-mqtt>=2.0.0
+
+# Web Dashboard Dependencies
+Flask>=2.3.0
+Flask-SocketIO>=5.3.0
+python-socketio>=5.8.0
+python-engineio>=4.7.0
+
+# Optional packages for enhanced visualization
+# seaborn>=0.11.0

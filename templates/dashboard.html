@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home IoT Dashboard - Scientific Simulation</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            padding: 20px;
+        }
+        
+        .sensor-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s ease;
+        }
+        
+        .sensor-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        
+        .power-chart-container {
+            position: relative;
+            height: 400px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-running {
+            background-color: #28a745;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-stopped {
+            background-color: #dc3545;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .alert-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #dc3545;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: shake 0.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes shake {
+            0% { transform: translateX(0px); }
+            100% { transform: translateX(2px); }
+        }
+        
+        .control-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .metric-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .btn-custom {
+            border-radius: 25px;
+            padding: 10px 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-start {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            color: white;
+        }
+        
+        .btn-stop {
+            background: linear-gradient(45deg, #dc3545, #fd7e14);
+            border: none;
+            color: white;
+        }
+        
+        .sensor-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .temperature-icon { color: #ff6b6b; }
+        .humidity-icon { color: #4ecdc4; }
+        .air-icon { color: #45b7d1; }
+        .light-icon { color: #f9ca24; }
+        .motion-icon { color: #6c5ce7; }
+        .noise-icon { color: #a29bfe; }
+        
+        .optimization-controls {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            transition: background 0.3s;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+        
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .alert-item {
+            background: rgba(220, 53, 69, 0.1);
+            border-left: 4px solid #dc3545;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            border-radius: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- Connection Status -->
+        <!-- <div class="connection-status" id="connectionStatus">
+            <span class="status-indicator status-stopped" id="statusIndicator"></span>
+            <span id="statusText">Disconnected</span>
+        </div> -->
+
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1 class="mb-0">
+                        <i class="fas fa-home text-primary"></i>
+                        Smart Home IoT Dashboard
+                    </h1>
+                    <p class="text-muted mb-0">Real-time monitoring and control system</p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <div class="d-inline-block me-3">
+                        <small class="text-muted">Last Updated:</small><br>
+                        <span id="lastUpdate" class="fw-bold">--:--:--</span>
+                    </div>
+                    <div class="d-inline-block">
+                        <small class="text-muted">Data Points:</small><br>
+                        <span id="dataPoints" class="fw-bold">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Control Panel -->
+            <div class="col-md-3">
+                <div class="control-panel">
+                    <h5><i class="fas fa-cogs"></i> System Controls</h5>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Simulation Status</label>
+                        <div>
+                            <span class="status-indicator" id="simStatusIndicator"></span>
+                            <span id="simStatusText">Stopped</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="optimizationToggle">
+                            <label class="form-check-label" for="optimizationToggle">
+                                Energy Optimization
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-start btn-custom" id="startBtn" onclick="startSimulation()">
+                            <i class="fas fa-play"></i> Start Simulation
+                        </button>
+                        <button class="btn btn-stop btn-custom" id="stopBtn" onclick="stopSimulation()" disabled>
+                            <i class="fas fa-stop"></i> Stop Simulation
+                        </button>
+                    </div>
+
+                    <!-- Optimization Controls -->
+                    <div class="optimization-controls" id="optimizationControls" style="display: none;">
+                        <h6><i class="fas fa-sliders-h"></i> Real-time Controls</h6>
+                        
+                        <div class="slider-container">
+                            <label class="form-label">Duty Cycle: <span id="dutyCycleValue">80</span>%</label>
+                            <input type="range" class="slider" id="dutyCycleSlider" 
+                                   min="10" max="100" value="80" onchange="updateOptimization()">
+                        </div>
+                        
+                        <div class="slider-container">
+                            <label class="form-label">Data Aggregation: <span id="aggregationValue">30</span>%</label>
+                            <input type="range" class="slider" id="aggregationSlider" 
+                                   min="10" max="90" value="30" onchange="updateOptimization()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Power Metrics -->
+                <div class="sensor-card">
+                    <div class="card-body">
+                        <h6><i class="fas fa-battery-half text-warning"></i> Power Metrics</h6>
+                        <div class="metric-card">
+                            <div class="metric-value" id="totalPower">0.0</div>
+                            <div class="metric-label">Total Power (mW)</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Sensing:</small><br>
+                                <span class="fw-bold" id="sensingPower">0.0 mW</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Communication:</small><br>
+                                <span class="fw-bold" id="commPower">0.0 mW</span>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-6">
+                                <small class="text-muted">Processing:</small><br>
+                                <span class="fw-bold" id="processingPower">0.0 mW</span>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Sleep:</small><br>
+                                <span class="fw-bold" id="sleepPower">0.0 mW</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts Panel -->
+                <div class="sensor-card">
+                    <div class="card-body">
+                        <h6>
+                            <i class="fas fa-exclamation-triangle text-warning"></i> 
+                            Alert System
+                            <span class="alert-badge" id="alertBadge" style="display: none;">0</span>
+                        </h6>
+                        <div id="alertsList">
+                            <p class="text-muted small">No alerts at this time</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <!-- Power Consumption Chart -->
+                <div class="sensor-card">
+                    <div class="card-body">
+                        <h5><i class="fas fa-chart-line text-primary"></i> Power Consumption</h5>
+                        <div class="power-chart-container">
+                            <canvas id="powerChart"></canvas>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-outline-primary btn-sm" onclick="showPowerAnalysis()">
+                                <i class="fas fa-analytics"></i> Detailed Analysis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sensor Data Cards -->
+                <div class="row" id="sensorCards">
+                    <!-- Temperature Sensor -->
+                    <div class="col-md-4">
+                        <div class="sensor-card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-thermometer-half sensor-icon temperature-icon"></i>
+                                <h6>Temperature</h6>
+                                <div class="metric-value" id="tempValue">--</div>
+                                <div class="metric-label">°C</div>
+                                <div class="chart-container">
+                                    <canvas id="tempChart"></canvas>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="showSensorHistory('temp')">
+                                    <i class="fas fa-history"></i> History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Humidity Sensor -->
+                    <div class="col-md-4">
+                        <div class="sensor-card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-tint sensor-icon humidity-icon"></i>
+                                <h6>Humidity</h6>
+                                <div class="metric-value" id="humValue">--</div>
+                                <div class="metric-label">%</div>
+                                <div class="chart-container">
+                                    <canvas id="humChart"></canvas>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="showSensorHistory('hum')">
+                                    <i class="fas fa-history"></i> History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Air Quality Sensor -->
+                    <div class="col-md-4">
+                        <div class="sensor-card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-wind sensor-icon air-icon"></i>
+                                <h6>Air Quality</h6>
+                                <div class="metric-value" id="airValue">--</div>
+                                <div class="metric-label">AQI</div>
+                                <div class="chart-container">
+                                    <canvas id="airChart"></canvas>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="showSensorHistory('air')">
+                                    <i class="fas fa-history"></i> History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Light Sensor -->
+                    <div class="col-md-4">
+                        <div class="sensor-card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-lightbulb sensor-icon light-icon"></i>
+                                <h6>Light Level</h6>
+                                <div class="metric-value" id="lightValue">--</div>
+                                <div class="metric-label">lux</div>
+                                <div class="chart-container">
+                                    <canvas id="lightChart"></canvas>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="showSensorHistory('light')">
+                                    <i class="fas fa-history"></i> History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Motion Sensor -->
+                    <div class="col-md-4">
+                        <div class="sensor-card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-walking sensor-icon motion-icon"></i>
+                                <h6>Motion Detection</h6>
+                                <div class="metric-value" id="motionValue">--</div>
+                                <div class="metric-label">Status</div>
+                                <div class="chart-container">
+                                    <canvas id="motionChart"></canvas>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="showSensorHistory('motion')">
+                                    <i class="fas fa-history"></i> History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Noise Sensor -->
+                    <div class="col-md-4">
+                        <div class="sensor-card">
+                            <div class="card-body text-center">
+                                <i class="fas fa-volume-up sensor-icon noise-icon"></i>
+                                <h6>Sound Level</h6>
+                                <div class="metric-value" id="noiseValue">--</div>
+                                <div class="metric-label">dB</div>
+                                <div class="chart-container">
+                                    <canvas id="noiseChart"></canvas>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm" onclick="showSensorHistory('noise')">
+                                    <i class="fas fa-history"></i> History
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Historical Data -->
+    <div class="modal fade" id="historyModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="historyModalTitle">Sensor History</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="loading-spinner" id="historyLoading">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>Loading historical data...</p>
+                    </div>
+                    <img id="historyChart" class="img-fluid" style="display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Power Analysis -->
+    <div class="modal fade" id="powerModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Power Consumption Analysis</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="loading-spinner" id="powerLoading">
+                        <i class="fas fa-spinner fa-spin fa-2x"></i>
+                        <p>Generating power analysis...</p>
+                    </div>
+                    <img id="powerAnalysisChart" class="img-fluid" style="display: none;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Chart instances
+        const charts = {};
+        
+        // Data storage
+        const sensorData = {
+            temp: { data: [], labels: [] },
+            hum: { data: [], labels: [] },
+            air: { data: [], labels: [] },
+            light: { data: [], labels: [] },
+            motion: { data: [], labels: [] },
+            noise: { data: [], labels: [] }
+        };
+        
+        const powerData = {
+            total: [],
+            communication: [],
+            labels: []
+        };
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            checkSimulationStatus();
+            
+            // Optimization toggle handler
+            document.getElementById('optimizationToggle').addEventListener('change', function() {
+                const controls = document.getElementById('optimizationControls');
+                controls.style.display = this.checked ? 'block' : 'none';
+            });
+        });
+        
+        function initializeCharts() {
+            // Power chart
+            const powerCtx = document.getElementById('powerChart').getContext('2d');
+            charts.power = new Chart(powerCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Total Power (mW)',
+                        data: [],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Communication Power (mW)',
+                        data: [],
+                        borderColor: '#fd7e14',
+                        backgroundColor: 'rgba(253, 126, 20, 0.1)',
+                        fill: false,
+                        borderDash: [5, 5]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Power (mW)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    animation: {
+                        duration: 500
+                    }
+                }
+            });
+            
+            // Individual sensor charts
+            const sensorTypes = ['temp', 'hum', 'air', 'light', 'motion', 'noise'];
+            const sensorColors = {
+                temp: '#ff6b6b',
+                hum: '#4ecdc4',
+                air: '#45b7d1',
+                light: '#f9ca24',
+                motion: '#6c5ce7',
+                noise: '#a29bfe'
+            };
+            
+            sensorTypes.forEach(type => {
+                const ctx = document.getElementById(type + 'Chart').getContext('2d');
+                charts[type] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: type.charAt(0).toUpperCase() + type.slice(1),
+                            data: [],
+                            borderColor: sensorColors[type],
+                            backgroundColor: sensorColors[type] + '20',
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: type === 'motion'
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        animation: {
+                            duration: 300
+                        }
+                    }
+                });
+            });
+        }
+        
+        // Fetch real-time sensor data
+        async function fetchSensorData() {
+            try {
+                const response = await fetch('/api/sensor_data');
+                const data = await response.json();
+                
+                console.log('Fetched sensor data:', data);
+                updateDashboard(data);
+            } catch (error) {
+                console.error('Error fetching sensor data:', error);
+            }
+        }
+        
+        // Start simulation
+        async function startSimulation() {
+            try {
+                const optimizationEnabled = document.getElementById('optimizationToggle').checked;
+                
+                const response = await fetch('/api/start_simulation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        optimization_enabled: optimizationEnabled
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateSimulationStatus(true);
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    
+                    // Start fetching data every 2 seconds
+                    if (window.dataInterval) clearInterval(window.dataInterval);
+                    window.dataInterval = setInterval(fetchSensorData, 2000);
+                } else {
+                    alert('Failed to start simulation: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error starting simulation:', error);
+                alert('Error starting simulation');
+            }
+        }
+        
+        // Stop simulation
+        async function stopSimulation() {
+            try {
+                const response = await fetch('/api/stop_simulation', {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateSimulationStatus(false);
+                    document.getElementById('startBtn').disabled = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    
+                    // Stop fetching data
+                    if (window.dataInterval) {
+                        clearInterval(window.dataInterval);
+                        window.dataInterval = null;
+                    }
+                }
+            } catch (error) {
+                console.error('Error stopping simulation:', error);
+                alert('Error stopping simulation');
+            }
+        }
+        
+        function updateSimulationStatus(running) {
+            const indicator = document.getElementById('simStatusIndicator');
+            const text = document.getElementById('simStatusText');
+            
+            if (running) {
+                indicator.className = 'status-indicator status-running';
+                text.textContent = 'Running';
+            } else {
+                indicator.className = 'status-indicator status-stopped';
+                text.textContent = 'Stopped';
+            }
+        }
+        
+        // Check simulation status
+        async function checkSimulationStatus() {
+            try {
+                const response = await fetch('/api/simulation_status');
+                const status = await response.json();
+                
+                updateSimulationStatus(status.running);
+                document.getElementById('startBtn').disabled = status.running;
+                document.getElementById('stopBtn').disabled = !status.running;
+                document.getElementById('dataPoints').textContent = status.data_points;
+                
+                if (status.optimization_enabled) {
+                    document.getElementById('optimizationToggle').checked = true;
+                    document.getElementById('optimizationControls').style.display = 'block';
+                }
+                
+                // If simulation is running, start data fetching
+                if (status.running && !window.dataInterval) {
+                    window.dataInterval = setInterval(fetchSensorData, 2000);
+                }
+            } catch (error) {
+                console.error('Error checking simulation status:', error);
+            }
+        }
+        
+        // Update optimization settings
+        function updateOptimization() {
+            document.getElementById('dutyCycleValue').textContent = document.getElementById('dutyCycleSlider').value;
+            document.getElementById('aggregationValue').textContent = document.getElementById('aggregationSlider').value;
+            
+            const dutyCycle = parseInt(document.getElementById('dutyCycleSlider').value);
+            const aggregation = parseInt(document.getElementById('aggregationSlider').value);
+            
+            fetch('/api/update_optimization', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    duty_cycle: dutyCycle / 100.0,
+                    aggregation_factor: aggregation / 100.0
+                })
+            }).catch(error => {
+                console.error('Error updating optimization:', error);
+            });
+        }
+        
+        function updateDashboard(data) {
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            
+            // Update power metrics
+            if (data.power_metrics) {
+                document.getElementById('totalPower').textContent = data.power_metrics.total_power.toFixed(1);
+                document.getElementById('sensingPower').textContent = data.power_metrics.sensing_power.toFixed(1) + ' mW';
+                document.getElementById('commPower').textContent = data.power_metrics.communication_power.toFixed(1) + ' mW';
+                document.getElementById('processingPower').textContent = data.power_metrics.processing_power.toFixed(1) + ' mW';
+                document.getElementById('sleepPower').textContent = data.power_metrics.sleep_power.toFixed(1) + ' mW';
+                
+                // Update power chart
+                const now = new Date().toLocaleTimeString();
+                powerData.labels.push(now);
+                powerData.total.push(data.power_metrics.total_power);
+                powerData.communication.push(data.power_metrics.communication_power);
+                
+                // Keep only last 20 data points
+                if (powerData.labels.length > 20) {
+                    powerData.labels.shift();
+                    powerData.total.shift();
+                    powerData.communication.shift();
+                }
+                
+                charts.power.data.labels = powerData.labels;
+                charts.power.data.datasets[0].data = powerData.total;
+                charts.power.data.datasets[1].data = powerData.communication;
+                charts.power.update('none');
+            }
+            
+            // Update sensor data
+            if (data.sensor_data) {
+                Object.keys(data.sensor_data).forEach(sensorType => {
+                    const readings = data.sensor_data[sensorType];
+                    if (readings && readings.length > 0) {
+                        const latestReading = readings[0];
+                        
+                        // Update sensor value display
+                        const valueElement = document.getElementById(sensorType + 'Value');
+                        if (valueElement) {
+                            if (sensorType === 'motion') {
+                                valueElement.textContent = latestReading.value === 1 ? 'DETECTED' : 'CLEAR';
+                                valueElement.className = 'metric-value ' + (latestReading.value === 1 ? 'text-danger' : 'text-success');
+                            } else {
+                                valueElement.textContent = latestReading.value.toFixed(1);
+                                valueElement.className = 'metric-value';
+                            }
+                        }
+                        
+                        // Update sensor chart
+                        if (charts[sensorType]) {
+                            const now = new Date().toLocaleTimeString();
+                            sensorData[sensorType].labels.push(now);
+                            sensorData[sensorType].data.push(latestReading.value);
+                            
+                            // Keep only last 15 data points
+                            if (sensorData[sensorType].labels.length > 15) {
+                                sensorData[sensorType].labels.shift();
+                                sensorData[sensorType].data.shift();
+                            }
+                            
+                            charts[sensorType].data.labels = sensorData[sensorType].labels;
+                            charts[sensorType].data.datasets[0].data = sensorData[sensorType].data;
+                            charts[sensorType].update('none');
+                        }
+                    }
+                });
+            }
+            
+            // Update alert system
+            if (data.alert_summary) {
+                updateAlertSystem(data.alert_summary);
+            }
+            
+            // Update data points counter
+            document.getElementById('dataPoints').textContent = data.cycle || 0;
+        }
+        
+        function updateAlertSystem(alertSummary) {
+            const alertBadge = document.getElementById('alertBadge');
+            const alertsList = document.getElementById('alertsList');
+            
+            if (alertSummary && alertSummary.total > 0) {
+                alertBadge.style.display = 'flex';
+                alertBadge.textContent = alertSummary.total;
+                
+                let alertsHtml = '';
+                if (alertSummary.by_severity) {
+                    Object.keys(alertSummary.by_severity).forEach(severity => {
+                        const count = alertSummary.by_severity[severity];
+                        const icon = severity === 'critical' ? 'fa-exclamation-triangle' : 'fa-exclamation-circle';
+                        const color = severity === 'critical' ? 'text-danger' : 'text-warning';
+                        
+                        alertsHtml += `
+                            <div class="alert-item">
+                                <i class="fas ${icon} ${color}"></i>
+                                <strong>${severity.charAt(0).toUpperCase() + severity.slice(1)}</strong>: ${count} alert${count > 1 ? 's' : ''}
+                            </div>
+                        `;
+                    });
+                }
+                
+                if (alertSummary.most_recent) {
+                    alertsHtml += `<small class="text-muted">Last alert: ${new Date(alertSummary.most_recent).toLocaleString()}</small>`;
+                }
+                
+                alertsList.innerHTML = alertsHtml;
+            } else {
+                alertBadge.style.display = 'none';
+                alertsList.innerHTML = '<p class="text-muted small">No alerts at this time</p>';
+            }
+        }
+        
+        async function showSensorHistory(sensorType) {
+            const modal = new bootstrap.Modal(document.getElementById('historyModal'));
+            document.getElementById('historyModalTitle').textContent = `${sensorType.charAt(0).toUpperCase() + sensorType.slice(1)} Sensor History`;
+            
+            document.getElementById('historyLoading').style.display = 'block';
+            document.getElementById('historyChart').style.display = 'none';
+            
+            modal.show();
+            
+            try {
+                const response = await fetch(`/api/historical_chart/${sensorType}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('historyChart').src = 'data:image/png;base64,' + result.chart;
+                    document.getElementById('historyLoading').style.display = 'none';
+                    document.getElementById('historyChart').style.display = 'block';
+                } else {
+                    document.getElementById('historyLoading').innerHTML = '<p class="text-danger">Error loading chart: ' + result.error + '</p>';
+                }
+            } catch (error) {
+                console.error('Error loading historical chart:', error);
+                document.getElementById('historyLoading').innerHTML = '<p class="text-danger">Error loading chart</p>';
+            }
+        }
+        
+        async function showPowerAnalysis() {
+            const modal = new bootstrap.Modal(document.getElementById('powerModal'));
+            
+            document.getElementById('powerLoading').style.display = 'block';
+            document.getElementById('powerAnalysisChart').style.display = 'none';
+            
+            modal.show();
+            
+            try {
+                const response = await fetch('/api/power_analysis');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('powerAnalysisChart').src = 'data:image/png;base64,' + result.chart;
+                    document.getElementById('powerLoading').style.display = 'none';
+                    document.getElementById('powerAnalysisChart').style.display = 'block';
+                } else {
+                    document.getElementById('powerLoading').innerHTML = '<p class="text-danger">Error loading analysis: ' + result.error + '</p>';
+                }
+            } catch (error) {
+                console.error('Error loading power analysis:', error);
+                document.getElementById('powerLoading').innerHTML = '<p class="text-danger">Error loading analysis</p>';
+            }
+        }
+    </script>
+</body>
+</html>
