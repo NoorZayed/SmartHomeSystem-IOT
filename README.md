@@ -1,6 +1,6 @@
 # Smart Home IoT System - Web Dashboard
 <img width="1440" height="666" alt="iot" src="https://github.com/user-attachments/assets/296656a3-0220-4007-8181-75583c1ef961" />
-<img width="1436" height="707" alt="Screenshot 2025-07-30 at 10 46 16 PM" src="https://github.com/user-attachments/assets/2894be28-316c-40d9-9b1f-fe0afd30447c" />
+<img width="1424" height="543" alt="Screenshot 2025-07-30 at 10 46 16 PM" src="https://github.com/user-attachments/assets/7e9db2a4-1525-4208-873a-790b275e6b27" />
 <img width="1424" height="575" alt="Screenshot 2025-07-30 at 10 46 28 PM" src="https://github.com/user-attachments/assets/59d9dd41-2eda-4623-bd29-a00910c917fb" />
 
 A comprehensive Smart Home IoT monitoring system with real-time web dashboard and advanced analytics.
